@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; }
+    h1 { color: #ff3333; }
+    .timer { font-size: 4rem; margin: 20px; }
+    button { padding: 10px 20px; font-size: 1.2rem; background: #28a745; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>DROP AND PLANK!</h1>
+  <p>You watched too many shorts. Hold a 1-minute plank.</p>
+  <div class="timer" id="time">01:00</div>
+  <button id="btn" onclick="startPlank()">Start</button>
+
+  <script>
+    let timeLeft = 60;
+    function startPlank() {
+      document.getElementById('btn').style.display = 'none';
+      let countdown = setInterval(() => {
+        timeLeft--;
+        let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        let secs = (timeLeft % 60).toString().padStart(2, '0');
+        document.getElementById('time').innerText = `${mins}:${secs}`;
+
+        if (timeLeft <= 0) {
+          clearInterval(countdown);
+          // Tell background.js the plank is complete
+          chrome.runtime.sendMessage({action: "resetTimer"}, (response) => {
+             if(response.status === "unlocked") {
+               alert("Unlocked! Go back to YouTube.");
+               window.location.href = "https://youtube.com";
+             }
+          });
+        }
+      }, 1000);
+    }
+  </script>
+</body>
+</html>
