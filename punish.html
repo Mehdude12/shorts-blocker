@@ -28,12 +28,20 @@
     let timerInterval = null;
     let isPhoneFlat = false;
     let isSurfaceSolid = false;
+    let macTestingMode = false; // Hidden developer override
     
     const statusElement = document.getElementById('status');
     const timerElement = document.getElementById('time');
     const activateBtn = document.getElementById('activateBtn');
 
-    // 1. Request Hardware Motion Permissions (Required by modern browsers)
+    // MAC TESTING OVERRIDE: Press the 'T' key on your Mac keyboard to bypass sensor testing!
+    window.addEventListener('keydown', (event) => {
+      if (event.key.toLowerCase() === 't') {
+        macTestingMode = !macTestingMode;
+        console.log("Mac Testing Mode toggled:", macTestingMode);
+      }
+    });
+
     function requestSensorPermissions() {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
@@ -41,7 +49,7 @@
             if (permissionState === 'granted') { startSensors(); }
           }).catch(console.error);
       } else {
-        startSensors(); // Works automatically on standard Android Chrome
+        startSensors(); 
       }
     }
 
@@ -49,34 +57,29 @@
       activateBtn.style.display = "none";
       statusElement.style.display = "block";
 
-      // 2. TILT CHECK: Ensure phone is flat on its back
       window.addEventListener('deviceorientation', (event) => {
         let beta = Math.abs(event.beta);
         let gamma = Math.abs(event.gamma);
         isPhoneFlat = (beta < 10 && gamma < 10);
       });
 
-      // 3. MATTRESS DETECTION: Measures micro-vibrations and floor absorption frequencies
       window.addEventListener('devicemotion', (event) => {
-        let acc = event.acceleration; // Acceleration excluding gravity
+        let acc = event.acceleration; 
         if (!acc) return;
 
-        // Calculate total 3D physics movement value
         let movement = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
 
-        // Physics Logic:
-        // A bed acts like a giant shock absorber—when your head shakes on a bed, the mattress 
-        // creates slow, damp, bouncy vibrations (movement score waves around 0.05 to 0.3).
-        // A hardwood/tile floor absorbs everything. When you drop down onto a solid floor,
-        // it stays perfectly rigid (movement score sits at structural absolute zero: < 0.02).
+        // Solid ground floor check
         if (movement > 0.001 && movement < 0.035) {
-          isSurfaceSolid = true; // The phone is resting on a completely unyielding solid floor surface
+          isSurfaceSolid = true; 
         } else {
-          isSurfaceSolid = false; // Tilted, picked up, or sitting on a soft bouncy mattress/bed
+          isSurfaceSolid = false; 
         }
 
-        // Live Master Status Evaluator
-        if (!isPhoneFlat) {
+        // Live Interface Updates
+        if (macTestingMode) {
+          updateStatus(true, "💻 MAC TESTING BYPASS ACTIVE! TIMER RUNNING!");
+        } else if (!isPhoneFlat) {
           updateStatus(false, "⚠️ PHONE MUST BE LYING FLAT ON THE FLOOR!");
         } else if (!isSurfaceSolid) {
           updateStatus(false, "🛏️ SOFT SURFACE DETECTED! PLACE ON SOLID HARDWOOD/TILE FLOOR!");
@@ -95,8 +98,8 @@
 
     function runExerciseTimer() {
       timerInterval = setInterval(() => {
-        // BOTH physics boundaries must pass to tick down the time
-        if (isPhoneFlat && isSurfaceSolid && timeLeft > 0) {
+        // Countdown ticks if real sensors pass OR if your Mac testing mode is on
+        if ((macTestingMode || (isPhoneFlat && isSurfaceSolid)) && timeLeft > 0) {
           timeLeft--;
           let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
           let secs = (timeLeft % 60).toString().padStart(2, '0');
