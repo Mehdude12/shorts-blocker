@@ -2,71 +2,83 @@
 <html>
 <head>
   <title>AI PLANK LOCKOUT</title>
-  <!-- Load ultra-stable, mobile-friendly TensorFlow AI Vision engines -->
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
   <style>
-    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
-    h1 { color: #ff3333; margin: 10px 0; font-size: 2rem; }
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; overflow: hidden; }
+    h1 { color: #ff3333; margin: 10px 0; font-size: 1.8rem; }
+    p { font-size: 1rem; color: #aaa; margin: 5px; }
     .timer { font-size: 5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
+    
     #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
     video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
-    .status-box { font-size: 1.3rem; margin: 15px; font-weight: bold; padding: 12px; border-radius: 5px; }
+    
+    #targetZone { position: absolute; width: 60px; height: 60px; border: 4px dashed #007bff; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: none; }
+    
+    .status-box { font-size: 1.2rem; margin: 15px; font-weight: bold; padding: 12px; border-radius: 5px; }
     .planking { background: #28a745; color: white; }
     .cheating { background: #dc3545; color: white; }
-    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
 
-  <h1>AI PLANK VERIFICATION</h1>
-  <p>Prop your phone up. Face the camera on your forearms. Keep your body straight!</p>
+  <h1>PLANK VERIFICATION RUNNING</h1>
+  <p>Place phone FLAT on the floor. Hold your stance directly over the camera target circle!</p>
   
   <div class="timer" id="time">01:00</div>
   
-  <button id="activateBtn" class="start-btn" onclick="initAI()">START AI BLOCKER</button>
+  <button id="activateBtn" class="start-btn" onclick="startCamera()">START WEBCAM TIMER</button>
 
-  <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
-  <div id="status" class="status-box cheating" style="display:none;">🤖 INITIALISING LITE AI MODEL...</div>
+  <div id="videoContainer">
+    <video id="webcam" autoplay playsinline></video>
+    <div id="targetZone"></div>
+  </div>
+  <div id="status" class="status-box cheating" style="display:none;">📷 STANDBY... ALIGN FACE TO WINDOW</div>
 
   <script>
     let timeLeft = 60;
-    let isPlankingCorrectly = false;
-    let detector = undefined;
+    let timerInterval = null;
+    let matchInterval = null;
+    let isFaceAligned = false;
+    let isPhoneFlat = false;
+    let isBodyTremoring = false;
     
-    const videoElement = document.getElementById('webcam');
+    const video = document.getElementById('webcam');
     const statusElement = document.getElementById('status');
     const timerElement = document.getElementById('time');
     const activateBtn = document.getElementById('activateBtn');
     const videoContainer = document.getElementById('videoContainer');
+    const targetZone = document.getElementById('targetZone');
 
-    // 1. Boot up the lightweight mobile AI engine
-    async function initAI() {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 64;
+    canvas.height = 48;
+
+    let previousFrameData = null;
+
+    // 1. Strict Gravity Sensor Connection
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener('deviceorientation', (event) => {
+        let beta = Math.abs(event.beta);
+        let gamma = Math.abs(event.gamma);
+        isPhoneFlat = (beta < 12 && gamma < 12);
+      });
+    }
+
+    function startCamera() {
       activateBtn.style.display = "none";
       statusElement.style.display = "block";
       
-      try {
-        const model = poseDetection.SupportedModels.MoveNet;
-        const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
-        detector = await poseDetection.createDetector(model, detectorConfig);
-        
-        statusElement.innerText = "📷 STARTING WEBCAM...";
-        startWebcam();
-      } catch (err) {
-        statusElement.innerText = "❌ AI Setup Failed. Reloading...";
-        console.error(err);
-      }
-    }
-
-    // 2. Open Camera
-    function startWebcam() {
-      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } })
       .then((stream) => {
         videoContainer.style.display = "block";
-        videoElement.srcObject = stream;
-        videoElement.addEventListener("loadeddata", predictWebcam);
+        targetZone.style.display = "block";
+        video.srcObject = stream;
+        
+        statusElement.innerText = "🔍 ALIGN FACE INSIDE THE BLUE CIRCLE";
+        
+        matchInterval = setInterval(analyzeFrame, 200);
+        runExerciseTimer();
       })
       .catch((err) => {
         statusElement.innerText = "❌ CAMERA BLOCKED!";
@@ -74,65 +86,76 @@
       });
     }
 
-    // 3. Track video frames live
-    async function predictWebcam() {
-      if (detector && videoElement.readyState >= 2) {
-        const poses = await detector.estimatePoses(videoElement);
-        processPose(poses);
-      }
-      window.requestAnimationFrame(predictWebcam);
-    }
+    // 2. Micro-Movement Pixel Comparison Loop
+    function analyzeFrame() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const pixelData = ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data;
+        
+        // A. Basic close-up face shadow color test
+        let r = pixelData[0]; let g = pixelData[1]; let b = pixelData[2];
+        isFaceAligned = (r > 45 && g > 35 && b > 25 && r > b);
 
-    // 4. Calculate alignment using core landmarks
-    function processPose(poses) {
-      if (!poses || poses.length === 0) {
-        updatePlankStatus(false, "👤 NO BODY DETECTED");
-        return;
-      }
+        // B. Tremor Detection: Compare changes between current frame and last frame
+        if (previousFrameData) {
+          let totalDifference = 0;
+          for (let i = 0; i < currentFrame.data.length; i += 4) {
+            // Calculate luminosity changes across pixels
+            totalDifference += Math.abs(currentFrame.data[i] - previousFrameData.data[i]);
+          }
+          
+          // Average change threshold
+          let motionScore = totalDifference / (canvas.width * canvas.height);
+          
+          // An active human muscle tremor falls between 0.8 and 8.0 score. 
+          // If it is below 0.4, the phone is resting on a completely motionless bed/floor.
+          // If it is above 15.0, you are shaking the phone manually in your hand.
+          isBodyTremoring = (motionScore > 0.4 && motionScore < 12.0);
+        }
+        
+        previousFrameData = currentFrame;
 
-      const keypoints = poses[0].keypoints;
-      
-      // Extract vital tracking joints
-      const shoulder = keypoints.find(k => k.name === 'left_shoulder' || k.name === 'right_shoulder');
-      const hip = keypoints.find(k => k.name === 'left_hip' || k.name === 'right_hip');
-      const knee = keypoints.find(k => k.name === 'left_knee' || k.name === 'right_knee');
-
-      if (!shoulder || !hip || !knee || shoulder.score < 0.3 || hip.score < 0.3) {
-        updatePlankStatus(false, "🔍 ALIGN SIDE PROFILE TO CAMERA");
-        return;
-      }
-
-      // Live angle calculations
-      const hipAngle = Math.abs((Math.atan2(knee.y - hip.y, knee.x - hip.x) - Math.atan2(shoulder.y - hip.y, shoulder.x - hip.x)) * (180 / Math.PI));
-      
-      // Standard target parallel: straight line falls between 160° and 185°
-      if (hipAngle >= 155 && hipAngle <= 185) {
-        updatePlankStatus(true, "✅ PERFECT FORM! TIMER RUNNING!");
-      } else {
-        updatePlankStatus(false, "❌ FLATTEN HIPS! STAY LINEAR!");
-      }
-    }
-
-    function updatePlankStatus(valid, message) {
-      isPlankingCorrectly = valid;
-      statusElement.innerText = message;
-      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
-    }
-
-    // 5. Run the countdown clock strictly when form is valid
-    setInterval(() => {
-      if (isPlankingCorrectly && timeLeft > 0) {
-        timeLeft--;
-        let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-        let secs = (timeLeft % 60).toString().padStart(2, '0');
-        timerElement.innerText = `${mins}:${secs}`;
-
-        if (timeLeft <= 0) {
-          alert("🏆 PLANK VERIFIED! Redirection active.");
-          window.location.href = "https://youtube.com";
+        // C. Master Interface Notification Router
+        if (!isPhoneFlat) {
+          statusElement.innerText = "⚠️ PHONE MUST BE FLAT ON THE FLOOR!";
+          statusElement.className = "status-box cheating";
+          targetZone.style.borderColor = "#ff3333";
+        } else if (!isFaceAligned) {
+          statusElement.innerText = "❌ TARGET LOST! CENTER YOUR FACE CLOSE TO THE CAMERA!";
+          statusElement.className = "status-box cheating";
+          targetZone.style.borderColor = "#ff3333";
+        } else if (!isBodyTremoring) {
+          statusElement.innerText = "🛌 CHEATING DETECTED! NO MUSCLE TREMOR. DO NOT LIE FLAT!";
+          statusElement.className = "status-box cheating";
+          targetZone.style.borderColor = "#ff3333";
+        } else {
+          statusElement.innerText = "✅ PLANK ACTIVE! STAY IN SUSPENSION!";
+          statusElement.className = "status-box planking";
+          targetZone.style.borderColor = "#28a745";
         }
       }
-    }, 1000);
+    }
+
+    function runExerciseTimer() {
+      timerInterval = setInterval(() => {
+        // ALL THREE physical criteria must pass to deduct time
+        if (isPhoneFlat && isFaceAligned && isBodyTremoring && timeLeft > 0) {
+          timeLeft--;
+          let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+          let secs = (timeLeft % 60).toString().padStart(2, '0');
+          timerElement.innerText = `${mins}:${secs}`;
+          
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            clearInterval(matchInterval);
+            alert("🏆 WORKOUT VERIFIED! App block lifted.");
+            window.location.href = "https://youtube.com";
+          }
+        }
+      }, 1000);
+    }
   </script>
 </body>
 </html>
+
