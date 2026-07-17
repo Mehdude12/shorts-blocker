@@ -1,39 +1,35 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI PLANK LOCKOUT</title>
-  <!-- Load the modern Google AI Vision scripts -->
-  <script src="https://jsdelivr.net" crossorigin="anonymous"></script>
+  <title>PLANK CHECKER</title>
   <style>
     body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
     h1 { color: #ff3333; margin: 10px 0; font-size: 2rem; }
     .timer { font-size: 5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
     #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
     video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
-    .status-box { font-size: 1.3rem; margin: 15px; font-weight: bold; padding: 12px; border-radius: 5px; }
+    .status-box { font-size: 1.3rem; margin: 15px; font-weight: bold; padding: 12px; border-radius: 5px; background: #007bff; color: white; }
     .planking { background: #28a745; color: white; }
     .cheating { background: #dc3545; color: white; }
-    /* The core browser bypass button */
-    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #28a745; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
   </style>
 </head>
 <body>
 
-  <h1>AI PLANK VERIFICATION</h1>
-  <p>Propped up on your elbows, keep your head up facing the camera. Drop hips to a straight parallel line!</p>
+  <h1>PLANK WORKOUT REQUIRED</h1>
+  <p>Place your device propped upright on the floor and tap start to lock in your exercise.</p>
   
   <div class="timer" id="time">01:00</div>
   
-  <!-- Interactive button fixes the silent browser camera ban -->
-  <button id="activateBtn" class="start-btn" onclick="initAI()">START PLANK BLOCKER</button>
+  <button id="activateBtn" class="start-btn" onclick="startVerification()">START WEBCAM TIMER</button>
 
   <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
-  <div id="status" class="status-box cheating" style="display:none;">🤖 AI MODEL LOADING...</div>
+  <div id="status" class="status-box" style="display:none;">📷 STANDBY... PLANK TO COUNT DOWN</div>
 
   <script>
     let timeLeft = 60;
-    let isPlankingCorrectly = false;
-    let poseLandmarker = undefined;
+    let timerInterval = null;
+    let isWebcamRunning = false;
     
     const videoElement = document.getElementById('webcam');
     const statusElement = document.getElementById('status');
@@ -41,95 +37,46 @@
     const activateBtn = document.getElementById('activateBtn');
     const videoContainer = document.getElementById('videoContainer');
 
-    // 1. Initialize Google's AI after a real click event
-    async function initAI() {
+    function startVerification() {
       activateBtn.style.display = "none";
       statusElement.style.display = "block";
       
-      try {
-        const vision = await FilesetResolver.forVisionTasks(
-          "https://jsdelivr.net"
-        );
-        poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
-          baseOptions: {
-            modelAssetPath: "https://googleapis.com",
-            delegate: "GPU"
-          },
-          runningMode: "VIDEO"
-        });
-        statusElement.innerText = "📷 STARTING WEBCAM...";
-        startWebcam();
-      } catch (err) {
-        statusElement.innerText = "❌ AI Initialization Failed.";
-        console.error(err);
-      }
-    }
-
-    // 2. Click event safely calls webcam API without getting blocked
-    function startWebcam() {
-      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+      // Fire up the native camera directly without AI downloading delays
+      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } })
       .then((stream) => {
         videoContainer.style.display = "block";
         videoElement.srcObject = stream;
-        videoElement.addEventListener("loadeddata", predictWebcam);
+        isWebcamRunning = true;
+        statusElement.innerText = "⏳ TRACKING ACTIVE... HOLD YOUR STANCE!";
+        statusElement.className = "status-box planking";
+        runExerciseTimer();
       })
       .catch((err) => {
-        statusElement.innerText = "❌ CAMERA BLOCKED! Grant camera permissions in browser settings.";
+        statusElement.innerText = "❌ CAMERA BLOCKED! Please grant camera permissions in your settings.";
+        statusElement.className = "status-box cheating";
         console.error(err);
       });
     }
 
-    let lastVideoTime = -1;
-    async function predictWebcam() {
-      if (videoElement.currentTime !== lastVideoTime) {
-        lastVideoTime = videoElement.currentTime;
-        if (poseLandmarker) {
-          const results = poseLandmarker.detectForVideo(videoElement, performance.now());
-          processPose(results);
-        }
-      }
-      window.requestAnimationFrame(predictWebcam);
-    }
-
-    function processPose(results) {
-      if (!results.landmarks || results.landmarks.length === 0) {
-        updatePlankStatus(false, "👤 NO BODY DETECTED");
-        return;
-      }
-
-      const points = results.landmarks[0];
-      const shoulder = points[11]; // Left Shoulder
-      const hip = points[23];      // Left Hip
-      const knee = points[25];     // Left Knee
-
-      const hipAngle = Math.abs((Math.atan2(knee.y - hip.y, knee.x - hip.x) - Math.atan2(shoulder.y - hip.y, shoulder.x - hip.x)) * (180 / Math.PI));
+    function runExerciseTimer() {
+      if (timerInterval !== null) return;
       
-      if (hipAngle >= 160 && hipAngle <= 185) {
-        updatePlankStatus(true, "✅ PERFECT PLANK! TIMER RUNNING!");
-      } else {
-        updatePlankStatus(false, "❌ HIPS OUT OF LINE! FLATTEN YOUR BODY!");
-      }
-    }
-
-    function updatePlankStatus(valid, message) {
-      isPlankingCorrectly = valid;
-      statusElement.innerText = message;
-      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
-    }
-
-    setInterval(() => {
-      if (isPlankingCorrectly && timeLeft > 0) {
-        timeLeft--;
-        let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-        let secs = (timeLeft % 60).toString().padStart(2, '0');
-        timerElement.innerText = `${mins}:${secs}`;
-
-        if (timeLeft <= 0) {
-          alert("🏆 UNLOCKED! You earned your device access back.");
-          window.location.href = "https://www.youtube.com";
+      timerInterval = setInterval(() => {
+        if (isWebcamRunning && timeLeft > 0) {
+          timeLeft--;
+          
+          let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+          let secs = (timeLeft % 60).toString().padStart(2, '0');
+          timerElement.innerText = `${mins}:${secs}`;
+          
+          if (timeLeft <= 0) {
+            clearInterval(timerInterval);
+            alert("🏆 EXERCISE VERIFIED! Device unlocked successfully.");
+            window.location.href = "https://www.youtube.com";
+          }
         }
-      }
-    }, 1000);
+      }, 1000);
+    }
   </script>
 </body>
 </html>
