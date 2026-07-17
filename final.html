@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI PLANK LOCKOUT</title>
+  <!-- Load ultra-stable, mobile-friendly TensorFlow AI Vision engines -->
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <style>
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; }
+    h1 { color: #ff3333; margin: 10px 0; font-size: 2rem; }
+    .timer { font-size: 5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
+    #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
+    video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
+    .status-box { font-size: 1.3rem; margin: 15px; font-weight: bold; padding: 12px; border-radius: 5px; }
+    .planking { background: #28a745; color: white; }
+    .cheating { background: #dc3545; color: white; }
+    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; margin-top: 20px; }
+  </style>
+</head>
+<body>
+
+  <h1>AI PLANK VERIFICATION</h1>
+  <p>Prop your phone up. Face the camera on your forearms. Keep your body straight!</p>
+  
+  <div class="timer" id="time">01:00</div>
+  
+  <button id="activateBtn" class="start-btn" onclick="initAI()">START AI BLOCKER</button>
+
+  <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
+  <div id="status" class="status-box cheating" style="display:none;">🤖 INITIALISING LITE AI MODEL...</div>
+
+  <script>
+    let timeLeft = 60;
+    let isPlankingCorrectly = false;
+    let detector = undefined;
+    
+    const videoElement = document.getElementById('webcam');
+    const statusElement = document.getElementById('status');
+    const timerElement = document.getElementById('time');
+    const activateBtn = document.getElementById('activateBtn');
+    const videoContainer = document.getElementById('videoContainer');
+
+    // 1. Boot up the lightweight mobile AI engine
+    async function initAI() {
+      activateBtn.style.display = "none";
+      statusElement.style.display = "block";
+      
+      try {
+        const model = poseDetection.SupportedModels.MoveNet;
+        const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
+        detector = await poseDetection.createDetector(model, detectorConfig);
+        
+        statusElement.innerText = "📷 STARTING WEBCAM...";
+        startWebcam();
+      } catch (err) {
+        statusElement.innerText = "❌ AI Setup Failed. Reloading...";
+        console.error(err);
+      }
+    }
+
+    // 2. Open Camera
+    function startWebcam() {
+      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
+      .then((stream) => {
+        videoContainer.style.display = "block";
+        videoElement.srcObject = stream;
+        videoElement.addEventListener("loadeddata", predictWebcam);
+      })
+      .catch((err) => {
+        statusElement.innerText = "❌ CAMERA BLOCKED!";
+        console.error(err);
+      });
+    }
+
+    // 3. Track video frames live
+    async function predictWebcam() {
+      if (detector && videoElement.readyState >= 2) {
+        const poses = await detector.estimatePoses(videoElement);
+        processPose(poses);
+      }
+      window.requestAnimationFrame(predictWebcam);
+    }
+
+    // 4. Calculate alignment using core landmarks
+    function processPose(poses) {
+      if (!poses || poses.length === 0) {
+        updatePlankStatus(false, "👤 NO BODY DETECTED");
+        return;
+      }
+
+      const keypoints = poses[0].keypoints;
+      
+      // Extract vital tracking joints
+      const shoulder = keypoints.find(k => k.name === 'left_shoulder' || k.name === 'right_shoulder');
+      const hip = keypoints.find(k => k.name === 'left_hip' || k.name === 'right_hip');
+      const knee = keypoints.find(k => k.name === 'left_knee' || k.name === 'right_knee');
+
+      if (!shoulder || !hip || !knee || shoulder.score < 0.3 || hip.score < 0.3) {
+        updatePlankStatus(false, "🔍 ALIGN SIDE PROFILE TO CAMERA");
+        return;
+      }
+
+      // Live angle calculations
+      const hipAngle = Math.abs((Math.atan2(knee.y - hip.y, knee.x - hip.x) - Math.atan2(shoulder.y - hip.y, shoulder.x - hip.x)) * (180 / Math.PI));
+      
+      // Standard target parallel: straight line falls between 160° and 185°
+      if (hipAngle >= 155 && hipAngle <= 185) {
+        updatePlankStatus(true, "✅ PERFECT FORM! TIMER RUNNING!");
+      } else {
+        updatePlankStatus(false, "❌ FLATTEN HIPS! STAY LINEAR!");
+      }
+    }
+
+    function updatePlankStatus(valid, message) {
+      isPlankingCorrectly = valid;
+      statusElement.innerText = message;
+      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
+    }
+
+    // 5. Run the countdown clock strictly when form is valid
+    setInterval(() => {
+      if (isPlankingCorrectly && timeLeft > 0) {
+        timeLeft--;
+        let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
+        let secs = (timeLeft % 60).toString().padStart(2, '0');
+        timerElement.innerText = `${mins}:${secs}`;
+
+        if (timeLeft <= 0) {
+          alert("🏆 PLANK VERIFIED! Redirection active.");
+          window.location.href = "https://youtube.com";
+        }
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
