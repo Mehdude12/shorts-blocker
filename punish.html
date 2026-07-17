@@ -1,105 +1,177 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>PHYSICS PLANK LOCKOUT</title>
+  <title>ULTIMATE PLANK LOCKOUT</title>
   <style>
-    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 40px; }
-    h1 { color: #ff3333; margin: 10px 0; font-size: 2rem; }
-    p { font-size: 1.1rem; color: #aaa; margin: 15px 0; }
-    .timer { font-size: 6rem; font-weight: bold; margin: 30px 0; color: #ffcc00; }
-    .status-box { font-size: 1.4rem; margin: 25px auto; font-weight: bold; padding: 20px; border-radius: 8px; max-width: 400px; }
-    .planking { background: #28a745; color: white; box-shadow: 0 0 20px #28a745; }
-    .cheating { background: #dc3545; color: white; box-shadow: 0 0 20px #dc3545; }
-    .start-btn { padding: 20px 40px; font-size: 1.5rem; background: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; }
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; overflow: hidden; }
+    h1 { color: #ff3333; margin: 5px 0; font-size: 1.8rem; }
+    p { font-size: 0.95rem; color: #aaa; margin: 5px; }
+    .timer { font-size: 5rem; font-weight: bold; margin: 5px 0; color: #ffcc00; }
+    
+    #videoContainer { position: relative; width: 280px; height: 210px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
+    video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
+    #targetZone { position: absolute; width: 50px; height: 50px; border: 4px dashed #007bff; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: none; }
+    
+    .status-box { font-size: 1.1rem; margin: 12px auto; font-weight: bold; padding: 12px; border-radius: 6px; max-width: 450px; }
+    .planking { background: #28a745; color: white; box-shadow: 0 0 15px #28a745; }
+    .cheating { background: #dc3545; color: white; box-shadow: 0 0 15px #dc3545; }
+    .start-btn { padding: 18px 36px; font-size: 1.4rem; background: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 10px; }
   </style>
 </head>
 <body>
 
-  <h1>HARD FLOOR PLANK VERIFICATION</h1>
-  <p>This page uses your phone's physics chip. Place your phone <b>flat on the solid floor</b> (wood/tile) directly underneath your chest.</p>
+  <h1>DUAL-ENGINE SECURITY VERIFICATION</h1>
+  <p>Place phone <b>FLAT on the solid floor</b>. Hold a forearm plank directly over the blinking target circle!</p>
   
   <div class="timer" id="time">01:00</div>
   
-  <button id="activateBtn" class="start-btn" onclick="requestSensorPermissions()">START PHYSICS CHECKER</button>
-  <div id="status" class="status-box cheating" style="display:none;">⏳ CALIBRATING SENSORS...</div>
+  <button id="activateBtn" class="start-btn" onclick="requestPermissions()">START ULTIMATE SYSTEM</button>
+
+  <div id="videoContainer">
+    <video id="webcam" autoplay playsinline></video>
+    <div id="targetZone"></div>
+  </div>
+  <div id="status" class="status-box cheating" style="display:none;">⏳ INITIALISING SECURITY ENGINES...</div>
 
   <script>
     let timeLeft = 60;
     let timerInterval = null;
+    let scanInterval = null;
+    
+    // Safety Criteria States
     let isPhoneFlat = false;
     let isSurfaceSolid = false;
-    let macTestingMode = false; // Hidden developer override
-    
+    let isFaceAligned = false;
+    let isBodyTremoring = false;
+    let macTestingMode = false; // Hidden developer override ('T' key)
+
+    const video = document.getElementById('webcam');
     const statusElement = document.getElementById('status');
     const timerElement = document.getElementById('time');
     const activateBtn = document.getElementById('activateBtn');
+    const videoContainer = document.getElementById('videoContainer');
+    const targetZone = document.getElementById('targetZone');
 
-    // MAC TESTING OVERRIDE: Press the 'T' key on your Mac keyboard to bypass sensor testing!
+    // Setup lightweight video pixel canvas
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = 64;
+    canvas.height = 48;
+    let previousFrameData = null;
+
+    // Mac Keyboard Testing Override Toggle
     window.addEventListener('keydown', (event) => {
       if (event.key.toLowerCase() === 't') {
         macTestingMode = !macTestingMode;
-        console.log("Mac Testing Mode toggled:", macTestingMode);
+        console.log("Mac Testing Mode:", macTestingMode);
       }
     });
 
-    function requestSensorPermissions() {
+    // 1. Core Permission Trigger Route
+    function requestPermissions() {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
         DeviceMotionEvent.requestPermission()
           .then(permissionState => {
-            if (permissionState === 'granted') { startSensors(); }
+            if (permissionState === 'granted') { startHardwareEngines(); }
           }).catch(console.error);
       } else {
-        startSensors(); 
+        startHardwareEngines(); 
       }
     }
 
-    function startSensors() {
+    // 2. Start Hardware & Camera Tracking Loops Together
+    function startHardwareEngines() {
       activateBtn.style.display = "none";
       statusElement.style.display = "block";
 
+      // A. ENGINE 1: Orientation Sensor (Tilt Check)
       window.addEventListener('deviceorientation', (event) => {
         let beta = Math.abs(event.beta);
         let gamma = Math.abs(event.gamma);
-        isPhoneFlat = (beta < 10 && gamma < 10);
+        isPhoneFlat = (beta < 12 && gamma < 12);
       });
 
+      // B. ENGINE 2: Motion Sensor (Floor Material Density Check)
       window.addEventListener('devicemotion', (event) => {
         let acc = event.acceleration; 
         if (!acc) return;
-
         let movement = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-
-        // Solid ground floor check
-        if (movement > 0.001 && movement < 0.035) {
-          isSurfaceSolid = true; 
-        } else {
-          isSurfaceSolid = false; 
-        }
-
-        // Live Interface Updates
-        if (macTestingMode) {
-          updateStatus(true, "💻 MAC TESTING BYPASS ACTIVE! TIMER RUNNING!");
-        } else if (!isPhoneFlat) {
-          updateStatus(false, "⚠️ PHONE MUST BE LYING FLAT ON THE FLOOR!");
-        } else if (!isSurfaceSolid) {
-          updateStatus(false, "🛏️ SOFT SURFACE DETECTED! PLACE ON SOLID HARDWOOD/TILE FLOOR!");
-        } else {
-          updateStatus(true, "✅ SOLID FLOOR DETECTED! PLANKING RUNNING!");
-        }
+        isSurfaceSolid = (movement > 0.001 && movement < 0.035);
       });
 
-      runExerciseTimer();
+      // C. ENGINE 3 & 4: Webcam Stream Activation (Face + Tremor Pixel Scan)
+      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } })
+      .then((stream) => {
+        videoContainer.style.display = "block";
+        targetZone.style.display = "block";
+        video.srcObject = stream;
+        
+        // Synchronised 200ms verification clock cycle
+        scanInterval = setInterval(verifyDualDataStreams, 200);
+        runExerciseTimer();
+      })
+      .catch((err) => {
+        statusElement.innerText = "❌ CAMERA ERROR! Grant permissions in Chrome.";
+        console.error(err);
+      });
     }
 
-    function updateStatus(valid, message) {
+    // 3. Main Data Synthesis Analysis Loop
+    function verifyDualDataStreams() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const centerPixel = ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data;
+        
+        // Logic Layer 3: Skin tone presence tracking
+        let r = centerPixel[0]; let g = centerPixel[1]; let b = centerPixel[2];
+        isFaceAligned = (r > 45 && g > 35 && b > 25 && r > b);
+
+        // Logic Layer 4: Webcam frame differential processing (Tremor detection)
+        if (previousFrameData) {
+          let totalDiff = 0;
+          for (let i = 0; i < currentFrame.data.length; i += 4) {
+            totalDiff += Math.abs(currentFrame.data[i] - previousFrameData.data[i]);
+          }
+          let motionScore = totalDiff / (canvas.width * canvas.height);
+          isBodyTremoring = (motionScore > 0.4 && motionScore < 12.0);
+        }
+        previousFrameData = currentFrame;
+
+        // Master UI Notification Engine
+        if (macTestingMode) {
+          updateUI(true, "💻 BYPASS ENGAGED: SENSORS IGNORED FOR MAC TESTING");
+          targetZone.style.borderColor = "#28a745";
+        } else if (!isPhoneFlat) {
+          updateUI(false, "⚠️ ORIENTATION ERROR: PHONE MUST BE LYING FLAT!");
+          targetZone.style.borderColor = "#ff3333";
+        } else if (!isSurfaceSolid) {
+          updateUI(false, "🛏️ STRUCTURAL FAIL: SOFT / BOUNCY SURFACE DETECTED!");
+          targetZone.style.borderColor = "#ff3333";
+        } else if (!isFaceAligned) {
+          updateUI(false, "👤 TARGET LOST: ALIGN FACE DIRECTLY OVER BLUE TARGET!");
+          targetZone.style.borderColor = "#ff3333";
+        } else if (!isBodyTremoring) {
+          updateUI(false, "🛌 ISOMETRIC LOCK ERROR: NO MUSCLE TREMOR OBSERVED!");
+          targetZone.style.borderColor = "#ff3333";
+        } else {
+          updateUI(true, "🔥 PERFECT FORM ENFORCED! STAY SUSPENDED!");
+          targetZone.style.borderColor = "#28a745";
+        }
+      }
+    }
+
+    function updateUI(valid, message) {
       statusElement.innerText = message;
       statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
     }
 
+    // 4. Strict Dual-Engine Countdown Gatekeeper
     function runExerciseTimer() {
       timerInterval = setInterval(() => {
-        // Countdown ticks if real sensors pass OR if your Mac testing mode is on
-        if ((macTestingMode || (isPhoneFlat && isSurfaceSolid)) && timeLeft > 0) {
+        const securityCleared = (isPhoneFlat && isSurfaceSolid && isFaceAligned && isBodyTremoring);
+        
+        if ((macTestingMode || securityCleared) && timeLeft > 0) {
           timeLeft--;
           let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
           let secs = (timeLeft % 60).toString().padStart(2, '0');
@@ -107,7 +179,8 @@
           
           if (timeLeft <= 0) {
             clearInterval(timerInterval);
-            alert("🏆 STRUCTURAL PLANK VERIFIED! App lock lifted.");
+            clearInterval(scanInterval);
+            alert("🏆 MAXIMUM SECURITY CHECK CONFIRMED! Access granted.");
             window.location.href = "https://youtube.com";
           }
         }
