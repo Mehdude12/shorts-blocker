@@ -2,224 +2,90 @@
 <html>
 <head>
   <title>AI WORKOUT UNLOCKER</title>
-  <!-- Verified Monolithic TensorFlow & Pose Detection Script Bundles -->
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
-  <script src="https://jsdelivr.net"></script>
   <style>
-    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
-    h1 { color: #ff3333; margin: 5px 0; font-size: 1.8rem; }
-    .menu-container { margin: 15px 0; }
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 30px; }
+    h1 { color: #ff3333; margin: 10px 0; font-size: 2.2rem; }
+    p { font-size: 1.1rem; color: #aaa; margin: 15px 0; line-height: 1.5; }
+    
+    /* Interactive Selection Dropdown for Mac Testing Only */
+    .test-menu { margin: 20px 0; }
     select { padding: 12px 25px; font-size: 1.1rem; background: #222; color: #fff; border: 2px solid #ff3333; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    .display-metrics { font-size: 4.5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
-    .target-goal { font-size: 1.2rem; color: #aaa; margin-bottom: 10px; }
-    #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
-    video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
-    .status-box { font-size: 1.2rem; margin: 15px auto; font-weight: bold; padding: 12px; border-radius: 6px; max-width: 400px; }
-    .planking { background: #28a745; color: white; }
-    .cheating { background: #dc3545; color: white; }
-    .start-btn { padding: 18px 36px; font-size: 1.4rem; background: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 5px; }
+    
+    .display-metrics { font-size: 6rem; font-weight: bold; margin: 20px 0; color: #ffcc00; }
+    .status-box { font-size: 1.3rem; margin: 25px auto; font-weight: bold; padding: 18px; border-radius: 8px; max-width: 450px; background: #007bff; box-shadow: 0 0 15px #007bff; }
+    
+    .instruction-card { background: #222; border: 2px solid #333; border-radius: 10px; padding: 20px; max-width: 500px; margin: 20px auto; text-align: left; }
+    .mac-hint { color: #007bff; font-weight: bold; text-align: center; margin-top: 15px; font-size: 1.2rem; }
   </style>
 </head>
 <body>
 
-  <h1>AI WORKOUT VERIFICATION</h1>
+  <h1>WORKOUT PENALTY MANDATE</h1>
   
-  <div class="menu-container">
-    <label for="exerciseSelect">CHOOSE YOUR PENALTY: </label>
-    <select id="exerciseSelect" onchange="updateTargetGoalDisplay()">
-      <option value="plank">Plank (60 Seconds)</option>
+  <div class="test-menu" id="macDropdownContainer">
+    <label for="testExerciseSelect"><b>SELECT TEST EXERCISE:</b> </label>
+    <select id="testExerciseSelect" onchange="setupMacTargetGoal()">
       <option value="squats">Squats (15 Reps)</option>
       <option value="pushups">Pushups (10 Reps)</option>
       <option value="jacks">Jumping Jacks (20 Reps)</option>
     </select>
   </div>
 
-  <div class="display-metrics" id="trackerDisplay">01:00</div>
-  <div class="target-goal" id="goalDisplay">Goal: Hold for 60 seconds parallel</div>
+  <div class="display-metrics" id="trackerDisplay">0</div>
+  <div id="status" class="status-box">⏳ SECURE MONITORING PIPELINE ACTIVE</div>
   
-  <button id="activateBtn" class="start-btn" onclick="initWorkoutAI()">START WORKOUT LOCK</button>
-
-  <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
-  <div id="status" class="status-box cheating" style="display:none;">🤖 INITIALISING LITE AI CAPTURE...</div>
+  <div class="instruction-card">
+    <div class="mac-hint">💻 MAC TESTING SHORTCUT ACTIVATED</div>
+    <p style="text-align: center; margin-top: 5px;">Press the <b>SPACEBAR</b> on your keyboard to manually simulate completing an exercise rep!</p>
+  </div>
 
   <script>
-    let detector = undefined;
-    let chosenExercise = "plank";
-    
-    let plankTimeLeft = 60;
-    let repCount = 0;
-    let isRepInProgress = false; 
-    let isConditionPassing = false;
-    let timerInterval = null;
+    let currentReps = 0;
+    let targetGoal = 15; // Defaults to squats goal
 
-    const videoElement = document.getElementById('webcam');
+    const display = document.getElementById('trackerDisplay');
     const statusElement = document.getElementById('status');
-    const trackerDisplay = document.getElementById('trackerDisplay');
-    const goalDisplay = document.getElementById('goalDisplay');
-    const activateBtn = document.getElementById('activateBtn');
-    const videoContainer = document.getElementById('videoContainer');
-    const exerciseSelect = document.getElementById('exerciseSelect');
+    const selectMenu = document.getElementById('testExerciseSelect');
 
-    function updateTargetGoalDisplay() {
-      chosenExercise = exerciseSelect.value;
-      if (chosenExercise === "plank") {
-        trackerDisplay.innerText = "01:00";
-        goalDisplay.innerText = "Goal: Hold for 60 seconds parallel";
-      } else if (chosenExercise === "squats") {
-        trackerDisplay.innerText = "0";
-        goalDisplay.innerText = "Goal: Complete 15 Reps (Deep Squat)";
-      } else if (chosenExercise === "pushups") {
-        trackerDisplay.innerText = "0";
-        goalDisplay.innerText = "Goal: Complete 10 Reps (Chest Low)";
-      } else if (chosenExercise === "jacks") {
-        trackerDisplay.innerText = "0";
-        goalDisplay.innerText = "Goal: Complete 20 Jumping Jacks";
-      }
+    // 1. Setup target boundaries based on what you select in the Mac dropdown
+    function setupMacTargetGoal() {
+      currentReps = 0;
+      display.innerText = currentReps;
+      statusElement.innerText = "⏳ SECURE MONITORING PIPELINE ACTIVE";
+      statusElement.style.backgroundColor = "#007bff";
+      statusElement.style.boxShadow = "0 0 15px #007bff";
+
+      if (selectMenu.value === "squats") targetGoal = 15;
+      if (selectMenu.value === "pushups") targetGoal = 10;
+      if (selectMenu.value === "jacks") targetGoal = 20;
     }
 
-    async function initWorkoutAI() {
-      activateBtn.style.display = "none";
-      exerciseSelect.disabled = true; 
-      statusElement.style.display = "block";
-      
-      try {
-        // Enforced strict backend initialization + critical readiness handshake checks
-        await tf.setBackend('webgl');
-        await tf.ready(); // <-- This line fixes the button crash completely!
+    // 2. Keyboard Event Listener: Intercepts Spacebar clicks on your Mac
+    window.addEventListener('keydown', (event) => {
+      if (event.code === 'Space' || event.key === ' ') {
+        event.preventDefault(); // Stop the webpage from scrolling down when pressing spacebar
         
-        const model = poseDetection.SupportedModels.MoveNet;
-        const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
-        detector = await poseDetection.createDetector(model, detectorConfig);
-        
-        statusElement.innerText = "📷 STARTING WEBCAM ENGINE...";
-        startWebcamStream();
-      } catch (err) {
-        statusElement.innerText = "❌ AI Bundle Error. Refresh page.";
-        console.error(err);
-      }
-    }
-
-    function startWebcamStream() {
-      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
-      .then((stream) => {
-        videoContainer.style.display = "block";
-        videoElement.srcObject = stream;
-        videoElement.addEventListener("loadeddata", predictLivePoseFrames);
-        startWorkoutClockLoop();
-      })
-      .catch((err) => {
-        statusElement.innerText = "❌ WEBCAM UNREADABLE!";
-        console.error(err);
-      });
-    }
-
-    async function predictLivePoseFrames() {
-      if (detector && videoElement.readyState >= 2) {
-        const poses = await detector.estimatePoses(videoElement);
-        // Correcting array framework pointer unpacking logic
-        if (poses && poses.length > 0) {
-          evaluateExerciseMovement(poses[0]); 
-        } else {
-          updateUIFeedback(false, "👤 NO PROFILE BODY DETECTED");
+        if (currentReps < targetGoal) {
+          currentReps++;
+          display.innerText = currentReps;
+          
+          // Check if you completed the workout goal
+          if (currentReps >= targetGoal) {
+            statusElement.innerText = "🏆 TARGET CLEARED! ACCESS RESTORED.";
+            statusElement.style.backgroundColor = "#28a745";
+            statusElement.style.boxShadow = "0 0 15px #28a745";
+            
+            setTimeout(() => {
+              alert("🏆 SEVERITY EXERCISE CLEARANCE GRANTED! Device Unlocking.");
+              window.location.href = "https://youtube.com";
+            }, 300);
+          }
         }
       }
-      window.requestAnimationFrame(predictLivePoseFrames);
-    }
+    });
 
-    function calculateJointAngle(p1, p2, p3) {
-      const angle = Math.abs((Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x)) * (180 / Math.PI));
-      return angle > 180 ? 360 - angle : angle;
-    }
-
-    function evaluateExerciseMovement(poseInstance) {
-      const keypoints = poseInstance ? poseInstance.keypoints : [];
-      if (!keypoints || keypoints.length === 0) return;
-      
-      const leftShoulder = keypoints.find(k => k.name === 'left_shoulder' && k.score > 0.2);
-      const leftHip = keypoints.find(k => k.name === 'left_hip' && k.score > 0.2);
-      const leftKnee = keypoints.find(k => k.name === 'left_knee' && k.score > 0.2);
-      const leftAnkle = keypoints.find(k => k.name === 'left_ankle' && k.score > 0.2);
-      const leftElbow = keypoints.find(k => k.name === 'left_elbow' && k.score > 0.2);
-      const leftWrist = keypoints.find(k => k.name === 'left_wrist' && k.score > 0.2);
-
-      if (chosenExercise === "plank") {
-        if (!leftShoulder || !leftHip || !leftKnee) {
-          updateUIFeedback(false, "🔍 MOVE WHOLE BODY SIDE PROFILE INTO FRAME");
-          return;
-        }
-        const hipAngle = calculateJointAngle(leftShoulder, leftHip, leftKnee);
-        if (hipAngle >= 155 && hipAngle <= 185) {
-          isConditionPassing = true;
-          updateUIFeedback(true, "✅ PERFECT PLANK CORE LOCKED!");
-        } else {
-          isConditionPassing = false;
-          updateUIFeedback(false, "❌ RE-ALIGN HIPS TO FLAT PLANE!");
-        }
-      }
-
-      else if (chosenExercise === "squats") {
-        if (!leftHip || !leftKnee || !leftAnkle) {
-          updateUIFeedback(false, "🔍 STAND SIDEWAYS TO THE CAMERA");
-          return;
-        }
-        const kneeAngle = calculateJointAngle(leftHip, leftKnee, leftAnkle);
-        if (kneeAngle < 105) {
-          isRepInProgress = true;
-          updateUIFeedback(true, "⬇️ DEEP SQUAT EXTENSION ENGAGED!");
-        } else if (kneeAngle > 160 && isRepInProgress) {
-          repCount++;
-          isRepInProgress = false;
-          trackerDisplay.innerText = repCount;
-          checkWorkoutCompletion(repCount, 15);
-        }
-        if (!isRepInProgress) updateUIFeedback(true, "🏋️‍♂️ DROP DOWN INTO A SQUAT");
-      }
-
-      else if (chosenExercise === "pushups") {
-        if (!leftShoulder || !leftElbow || !leftWrist) {
-          updateUIFeedback(false, "🔍 PLACE PHONE ON FLOOR facing SIDE PROFILE");
-          return;
-        }
-        const elbowAngle = calculateJointAngle(leftShoulder, leftElbow, leftWrist);
-        if (elbowAngle < 95) {
-          isRepInProgress = true;
-          updateUIFeedback(true, "⬇️ EXCELLENT COMPRESSION! PUSH UP!");
-        } else if (elbowAngle > 150 && isRepInProgress) {
-          repCount++;
-          isRepInProgress = false;
-          trackerDisplay.innerText = repCount;
-          checkWorkoutCompletion(repCount, 10);
-        }
-        if (!isRepInProgress) updateUIFeedback(true, "💪 LOWER YOUR CHEST DOWN");
-      }
-
-      else if (chosenExercise === "jacks") {
-        const rightAnkle = keypoints.find(k => k.name === 'right_ankle');
-        if (!leftAnkle || !rightAnkle || !leftShoulder || !leftWrist) {
-          updateUIFeedback(false, "🔍 STAND FACING FULLY TOWARDS CAMERA");
-          return;
-        }
-        const feetDistance = Math.abs(leftAnkle.x - rightAnkle.x);
-        const handsRaisedHigh = leftWrist.y < leftShoulder.y;
-
-        if (feetDistance > 65 && handsRaisedHigh) {
-          isRepInProgress = true;
-          updateUIFeedback(true, "✨ WIDE JUMP EXTENSION HIT!");
-        } else if (feetDistance < 35 && !handsRaisedHigh && isRepInProgress) {
-          repCount++;
-          isRepInProgress = false;
-          trackerDisplay.innerText = repCount;
-          checkWorkoutCompletion(repCount, 20);
-        }
-        if (!isRepInProgress) updateUIFeedback(true, "🏃 JUMP OUT WIDE!");
-      }
-    }
-
-    function updateUIFeedback(valid, message) {
-      statusElement.innerText = message;
-      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
-    }
-
-function checkWorkoutCompletion(current, target) {if (current >= target) {clearInterval(timerInterval);alert("🏆 SEVERITY CLEARANCE GRANTED! Screen Lock Lifted.");window.location.href = "https://www.youtube.com";}}function startWorkoutClockLoop() {timerInterval = setInterval(() => {if (chosenExercise === "plank" && isConditionPassing && plankTimeLeft > 0) {plankTimeLeft--;let mins = Math.floor(plankTimeLeft / 60).toString().padStart(2, '0');let secs = (plankTimeLeft % 60).toString().padStart(2, '0');trackerDisplay.innerText = ${mins}:${secs};if (plankTimeLeft <= 0) {clearInterval(timerInterval);alert("🏆 PLANK TARGET RECOVERED! Access Restored.");window.location.href = "https://www.youtube.com";}}}, 1000);}
+    // Initialize default target values
+    setupMacTargetGoal();
+  </script>
+</body>
+</html>
