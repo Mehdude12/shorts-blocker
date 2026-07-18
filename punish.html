@@ -2,25 +2,21 @@
 <html>
 <head>
   <title>AI WORKOUT UNLOCKER</title>
-  <!-- Load Ultra-Stable, Mobile-Optimized TensorFlow Vision Modules -->
+  <!-- Fixed TensorFlow CDN Script Tags -->
   <script src="https://jsdelivr.net"></script>
   <script src="https://jsdelivr.net"></script>
   <script src="https://jsdelivr.net"></script>
+  <!-- Core missing library that fixes the start button -->
   <script src="https://jsdelivr.net"></script>
   <style>
     body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
     h1 { color: #ff3333; margin: 5px 0; font-size: 1.8rem; }
-    
-    /* Exercise Selection UI Slider */
     .menu-container { margin: 15px 0; }
     select { padding: 12px 25px; font-size: 1.1rem; background: #222; color: #fff; border: 2px solid #ff3333; border-radius: 8px; cursor: pointer; font-weight: bold; }
-    
     .display-metrics { font-size: 4.5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
     .target-goal { font-size: 1.2rem; color: #aaa; margin-bottom: 10px; }
-
     #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
     video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
-    
     .status-box { font-size: 1.2rem; margin: 15px auto; font-weight: bold; padding: 12px; border-radius: 6px; max-width: 400px; }
     .planking { background: #28a745; color: white; }
     .cheating { background: #dc3545; color: white; }
@@ -53,14 +49,12 @@
     let detector = undefined;
     let chosenExercise = "plank";
     
-    // Core Workout Counter State Variables
     let plankTimeLeft = 60;
     let repCount = 0;
-    let exerciseGoal = 0;
-    let isRepInProgress = false; // State-machine tracker latch flag
+    let isRepInProgress = false; 
     let isConditionPassing = false;
+    let timerInterval = null;
 
-    // Element Target Anchors
     const videoElement = document.getElementById('webcam');
     const statusElement = document.getElementById('status');
     const trackerDisplay = document.getElementById('trackerDisplay');
@@ -88,10 +82,12 @@
 
     async function initWorkoutAI() {
       activateBtn.style.display = "none";
-      exerciseSelect.disabled = true; // Lock dropdown selection when workout starts
+      exerciseSelect.disabled = true; 
       statusElement.style.display = "block";
       
       try {
+        // Enforced strict backend architecture initiation
+        await tf.setBackend('webgl');
         const model = poseDetection.SupportedModels.MoveNet;
         const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
         detector = await poseDetection.createDetector(model, detectorConfig);
@@ -126,7 +122,6 @@
       window.requestAnimationFrame(predictLivePoseFrames);
     }
 
-    // Helper Math Engine: Computes angle formed by 3 coordinate nodes
     function calculateJointAngle(p1, p2, p3) {
       const angle = Math.abs((Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x)) * (180 / Math.PI));
       return angle > 180 ? 360 - angle : angle;
@@ -138,9 +133,10 @@
         return;
       }
 
-      const keypoints = poses[0].keypoints;
+      // Safeguard against missing array properties
+      const keypoints = poses[0] ? poses[0].keypoints : [];
+      if (keypoints.length === 0) return;
       
-      // Find standard points
       const leftShoulder = keypoints.find(k => k.name === 'left_shoulder');
       const leftHip = keypoints.find(k => k.name === 'left_hip');
       const leftKnee = keypoints.find(k => k.name === 'left_knee');
@@ -148,13 +144,9 @@
       const leftElbow = keypoints.find(k => k.name === 'left_elbow');
       const leftWrist = keypoints.find(k => k.name === 'left_wrist');
 
-      // ----------------------------------------
-      // ALGORITHM 1: ISOMETRIC PLANK ENGAGEMENT
-      // ----------------------------------------
       if (chosenExercise === "plank") {
         if (!leftShoulder || !leftHip || !leftKnee) return;
         const hipAngle = calculateJointAngle(leftShoulder, leftHip, leftKnee);
-        
         if (hipAngle >= 155 && hipAngle <= 185) {
           isConditionPassing = true;
           updateUIFeedback(true, "✅ PERFECT PLANK CORE LOCKED!");
@@ -164,64 +156,72 @@
         }
       }
 
-      // ----------------------------------------
-      // ALGORITHM 2: REPETITION SQUAT COUNTING
-      // ----------------------------------------
       else if (chosenExercise === "squats") {
         if (!leftHip || !leftKnee || !leftAnkle) return;
         const kneeAngle = calculateJointAngle(leftHip, leftKnee, leftAnkle);
-        
-        // Deep Squat state entry: Knee breaks 105 degrees
         if (kneeAngle < 105) {
           isRepInProgress = true;
           updateUIFeedback(true, "⬇️ DEEP SQUAT EXTENSION ENGAGED!");
-        } 
-        // Standing state recovery completes the full motion rep loop
-        else if (kneeAngle > 160 && isRepInProgress) {
+        } else if (kneeAngle > 160 && isRepInProgress) {
           repCount++;
           isRepInProgress = false;
           trackerDisplay.innerText = repCount;
           checkWorkoutCompletion(repCount, 15);
         }
-        
         if (!isRepInProgress) updateUIFeedback(true, "🏋️‍♂️ DROP DOWN INTO A SQUAT");
       }
 
-      // ----------------------------------------
-      // ALGORITHM 3: PUSHUP COMPRESSION GENERATOR
-      // ----------------------------------------
       else if (chosenExercise === "pushups") {
         if (!leftShoulder || !leftElbow || !leftWrist) return;
         const elbowAngle = calculateJointAngle(leftShoulder, leftElbow, leftWrist);
-        
-        // Down phase boundary threshold check
         if (elbowAngle < 95) {
           isRepInProgress = true;
           updateUIFeedback(true, "⬇️ EXCELLENT COMPRESSION! PUSH UP!");
-        } 
-        // Up phase return loop locks in a verified clean rep
-        else if (elbowAngle > 150 && isRepInProgress) {
+        } else if (elbowAngle > 150 && isRepInProgress) {
           repCount++;
           isRepInProgress = false;
           trackerDisplay.innerText = repCount;
           checkWorkoutCompletion(repCount, 10);
         }
-        
         if (!isRepInProgress) updateUIFeedback(true, "💪 LOWER YOUR CHEST DOWN");
       }
 
-      // ----------------------------------------
-      // ALGORITHM 4: JUMPING JACK COORDINATION
-      // ----------------------------------------
       else if (chosenExercise === "jacks") {
         const rightAnkle = keypoints.find(k => k.name === 'right_ankle');
         if (!leftAnkle || !rightAnkle || !leftShoulder || !leftWrist) return;
-        
-        // Detect wide feet distance stance jump
         const feetDistance = Math.abs(leftAnkle.x - rightAnkle.x);
-        const handsRaisedHigh = leftWrist.y < leftShoulder.y; // Y goes down on computer grids
+        const handsRaisedHigh = leftWrist.y < leftShoulder.y;
 
         if (feetDistance > 80 && handsRaisedHigh) {
           isRepInProgress = true;
           updateUIFeedback(true, "✨ WIDE JUMP EXTENSION HIT!");
-} else if (feetDistance < 40 && !handsRaisedHigh && isRepInProgress) {repCount++;isRepInProgress = false;trackerDisplay.innerText = repCount;checkWorkoutCompletion(repCount, 20);}if (!isRepInProgress) updateUIFeedback(true, "🏃 JUMP OUT WIDE!");}}function updateUIFeedback(valid, message) {statusElement.innerText = message;statusElement.className = status-box ${valid ? 'planking' : 'cheating'};}function checkWorkoutCompletion(current, target) {if (current >= target) {clearInterval(timerInterval);alert("🏆 SEVERITY CLEARANCE GRANTED! Screen Lock Lifted.");window.location.href = "https://www.youtube.com";}}function startWorkoutClockLoop() {timerInterval = setInterval(() => {if (chosenExercise === "plank" && isConditionPassing && plankTimeLeft > 0) {plankTimeLeft--;let mins = Math.floor(plankTimeLeft / 60).toString().padStart(2, '0');let secs = (plankTimeLeft % 60).toString().padStart(2, '0');trackerDisplay.innerText = ${mins}:${secs};if (plankTimeLeft <= 0) {clearInterval(timerInterval);alert("🏆 PLANK TARGET RECOVERED! Access Restored.");window.location.href = "https://www.youtube.com";}}}, 1000);}
+        } else if (feetDistance < 40 && !handsRaisedHigh && isRepInProgress) {
+          repCount++;
+          isRepInProgress = false;
+          trackerDisplay.innerText = repCount;
+          checkWorkoutCompletion(repCount, 20);
+        }
+        if (!isRepInProgress) updateUIFeedback(true, "🏃 JUMP OUT WIDE!");
+      }
+    }
+
+    function updateUIFeedback(valid, message) {
+      statusElement.innerText = message;
+      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
+    }
+
+    function checkWorkoutCompletion(current, target) {
+      if (current >= target) {
+        clearInterval(timerInterval);
+        alert("🏆 SEVERITY CLEARANCE GRANTED! Screen Lock Lifted.");
+        window.location.href = "https://www.youtube.com";
+      }
+    }
+
+    function startWorkoutClockLoop() {
+      timerInterval = setInterval(() => {
+        if (chosenExercise === "plank" && isConditionPassing && plankTimeLeft > 0) {
+          plankTimeLeft--;
+          let mins = Math.floor(plankTimeLeft / 60).toString().padStart(2, '0');
+          let secs = (plankTimeLeft % 60).toString().padStart(2, '0');
+trackerDisplay.innerText = ${mins}:${secs};if (plankTimeLeft <= 0) {clearInterval(timerInterval);alert("🏆 PLANK TARGET RECOVERED! Access Restored.");window.location.href = "https://www.youtube.com";}}}, 1000);}
