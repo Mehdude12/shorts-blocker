@@ -1,191 +1,227 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>ULTIMATE PLANK LOCKOUT</title>
+  <title>AI WORKOUT UNLOCKER</title>
+  <!-- Load Ultra-Stable, Mobile-Optimized TensorFlow Vision Modules -->
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
+  <script src="https://jsdelivr.net"></script>
   <style>
-    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 20px; overflow: hidden; }
+    body { background: #111; color: #fff; font-family: sans-serif; text-align: center; margin: 0; padding: 15px; }
     h1 { color: #ff3333; margin: 5px 0; font-size: 1.8rem; }
-    p { font-size: 0.95rem; color: #aaa; margin: 5px; }
-    .timer { font-size: 5rem; font-weight: bold; margin: 5px 0; color: #ffcc00; }
     
-    #videoContainer { position: relative; width: 280px; height: 210px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
+    /* Exercise Selection UI Slider */
+    .menu-container { margin: 15px 0; }
+    select { padding: 12px 25px; font-size: 1.1rem; background: #222; color: #fff; border: 2px solid #ff3333; border-radius: 8px; cursor: pointer; font-weight: bold; }
+    
+    .display-metrics { font-size: 4.5rem; font-weight: bold; margin: 10px 0; color: #ffcc00; }
+    .target-goal { font-size: 1.2rem; color: #aaa; margin-bottom: 10px; }
+
+    #videoContainer { position: relative; width: 320px; height: 240px; margin: 0 auto; border: 4px solid #ff3333; border-radius: 10px; overflow: hidden; display: none; }
     video { width: 100%; height: 100%; transform: scaleX(-1); background: #222; }
-    #targetZone { position: absolute; width: 50px; height: 50px; border: 4px dashed #007bff; border-radius: 50%; top: 50%; left: 50%; transform: translate(-50%, -50%); display: none; pointer-events: none; }
     
-    .status-box { font-size: 1.1rem; margin: 12px auto; font-weight: bold; padding: 12px; border-radius: 6px; max-width: 450px; }
-    .planking { background: #28a745; color: white; box-shadow: 0 0 15px #28a745; }
-    .cheating { background: #dc3545; color: white; box-shadow: 0 0 15px #dc3545; }
-    .start-btn { padding: 18px 36px; font-size: 1.4rem; background: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 10px; }
+    .status-box { font-size: 1.2rem; margin: 15px auto; font-weight: bold; padding: 12px; border-radius: 6px; max-width: 400px; }
+    .planking { background: #28a745; color: white; }
+    .cheating { background: #dc3545; color: white; }
+    .start-btn { padding: 18px 36px; font-size: 1.4rem; background: #007bff; color: white; border: none; border-radius: 50px; cursor: pointer; font-weight: bold; margin-top: 5px; }
   </style>
 </head>
 <body>
 
-  <h1>DUAL-ENGINE SECURITY VERIFICATION</h1>
-  <p>Place phone <b>FLAT on the solid floor</b>. Hold a forearm plank directly over the blinking target circle!</p>
+  <h1>AI WORKOUT VERIFICATION</h1>
   
-  <div class="timer" id="time">01:00</div>
-  
-  <button id="activateBtn" class="start-btn" onclick="requestPermissions()">START ULTIMATE SYSTEM</button>
-
-  <div id="videoContainer">
-    <video id="webcam" autoplay playsinline></video>
-    <div id="targetZone"></div>
+  <div class="menu-container">
+    <label for="exerciseSelect">CHOOSE YOUR PENALTY: </label>
+    <select id="exerciseSelect" onchange="updateTargetGoalDisplay()">
+      <option value="plank">Plank (60 Seconds)</option>
+      <option value="squats">Squats (15 Reps)</option>
+      <option value="pushups">Pushups (10 Reps)</option>
+      <option value="jacks">Jumping Jacks (20 Reps)</option>
+    </select>
   </div>
-  <div id="status" class="status-box cheating" style="display:none;">⏳ INITIALISING SECURITY ENGINES...</div>
+
+  <div class="display-metrics" id="trackerDisplay">01:00</div>
+  <div class="target-goal" id="goalDisplay">Goal: Hold for 60 seconds parallel</div>
+  
+  <button id="activateBtn" class="start-btn" onclick="initWorkoutAI()">START WORKOUT LOCK</button>
+
+  <div id="videoContainer"><video id="webcam" autoplay playsinline></video></div>
+  <div id="status" class="status-box cheating" style="display:none;">🤖 INITIALISING LITE AI CAPTURE...</div>
 
   <script>
-    let timeLeft = 60;
-    let timerInterval = null;
-    let scanInterval = null;
+    let detector = undefined;
+    let chosenExercise = "plank";
     
-    // Safety Criteria States
-    let isPhoneFlat = false;
-    let isSurfaceSolid = false;
-    let isFaceAligned = false;
-    let isBodyTremoring = false;
-    let macTestingMode = false; // Hidden developer override ('T' key)
+    // Core Workout Counter State Variables
+    let plankTimeLeft = 60;
+    let repCount = 0;
+    let exerciseGoal = 0;
+    let isRepInProgress = false; // State-machine tracker latch flag
+    let isConditionPassing = false;
 
-    const video = document.getElementById('webcam');
+    // Element Target Anchors
+    const videoElement = document.getElementById('webcam');
     const statusElement = document.getElementById('status');
-    const timerElement = document.getElementById('time');
+    const trackerDisplay = document.getElementById('trackerDisplay');
+    const goalDisplay = document.getElementById('goalDisplay');
     const activateBtn = document.getElementById('activateBtn');
     const videoContainer = document.getElementById('videoContainer');
-    const targetZone = document.getElementById('targetZone');
+    const exerciseSelect = document.getElementById('exerciseSelect');
 
-    // Setup lightweight video pixel canvas
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = 64;
-    canvas.height = 48;
-    let previousFrameData = null;
-
-    // Mac Keyboard Testing Override Toggle
-    window.addEventListener('keydown', (event) => {
-      if (event.key.toLowerCase() === 't') {
-        macTestingMode = !macTestingMode;
-        console.log("Mac Testing Mode:", macTestingMode);
-      }
-    });
-
-    // 1. Core Permission Trigger Route
-    function requestPermissions() {
-      if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        DeviceMotionEvent.requestPermission()
-          .then(permissionState => {
-            if (permissionState === 'granted') { startHardwareEngines(); }
-          }).catch(console.error);
-      } else {
-        startHardwareEngines(); 
+    function updateTargetGoalDisplay() {
+      chosenExercise = exerciseSelect.value;
+      if (chosenExercise === "plank") {
+        trackerDisplay.innerText = "01:00";
+        goalDisplay.innerText = "Goal: Hold for 60 seconds parallel";
+      } else if (chosenExercise === "squats") {
+        trackerDisplay.innerText = "0";
+        goalDisplay.innerText = "Goal: Complete 15 Reps (Deep Squat)";
+      } else if (chosenExercise === "pushups") {
+        trackerDisplay.innerText = "0";
+        goalDisplay.innerText = "Goal: Complete 10 Reps (Chest Low)";
+      } else if (chosenExercise === "jacks") {
+        trackerDisplay.innerText = "0";
+        goalDisplay.innerText = "Goal: Complete 20 Jumping Jacks";
       }
     }
 
-    // 2. Start Hardware & Camera Tracking Loops Together
-    function startHardwareEngines() {
+    async function initWorkoutAI() {
       activateBtn.style.display = "none";
+      exerciseSelect.disabled = true; // Lock dropdown selection when workout starts
       statusElement.style.display = "block";
+      
+      try {
+        const model = poseDetection.SupportedModels.MoveNet;
+        const detectorConfig = { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING };
+        detector = await poseDetection.createDetector(model, detectorConfig);
+        
+        statusElement.innerText = "📷 STARTING WEBCAM ENGINE...";
+        startWebcamStream();
+      } catch (err) {
+        statusElement.innerText = "❌ AI Bundle Error. Refresh page.";
+        console.error(err);
+      }
+    }
 
-      // A. ENGINE 1: Orientation Sensor (Tilt Check)
-      window.addEventListener('deviceorientation', (event) => {
-        let beta = Math.abs(event.beta);
-        let gamma = Math.abs(event.gamma);
-        isPhoneFlat = (beta < 12 && gamma < 12);
-      });
-
-      // B. ENGINE 2: Motion Sensor (Floor Material Density Check)
-      window.addEventListener('devicemotion', (event) => {
-        let acc = event.acceleration; 
-        if (!acc) return;
-        let movement = Math.sqrt(acc.x * acc.x + acc.y * acc.y + acc.z * acc.z);
-        isSurfaceSolid = (movement > 0.001 && movement < 0.035);
-      });
-
-      // C. ENGINE 3 & 4: Webcam Stream Activation (Face + Tremor Pixel Scan)
-      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240, facingMode: "user" } })
+    function startWebcamStream() {
+      navigator.mediaDevices.getUserMedia({ video: { width: 320, height: 240 } })
       .then((stream) => {
         videoContainer.style.display = "block";
-        targetZone.style.display = "block";
-        video.srcObject = stream;
-        
-        // Synchronised 200ms verification clock cycle
-        scanInterval = setInterval(verifyDualDataStreams, 200);
-        runExerciseTimer();
+        videoElement.srcObject = stream;
+        videoElement.addEventListener("loadeddata", predictLivePoseFrames);
+        startWorkoutClockLoop();
       })
       .catch((err) => {
-        statusElement.innerText = "❌ CAMERA ERROR! Grant permissions in Chrome.";
+        statusElement.innerText = "❌ WEBCAM UNREADABLE!";
         console.error(err);
       });
     }
 
-    // 3. Main Data Synthesis Analysis Loop
-    function verifyDualDataStreams() {
-      if (video.readyState === video.HAVE_ENOUGH_DATA) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const currentFrame = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const centerPixel = ctx.getImageData(canvas.width / 2, canvas.height / 2, 1, 1).data;
+    async function predictLivePoseFrames() {
+      if (detector && videoElement.readyState >= 2) {
+        const poses = await detector.estimatePoses(videoElement);
+        evaluateExerciseMovement(poses);
+      }
+      window.requestAnimationFrame(predictLivePoseFrames);
+    }
+
+    // Helper Math Engine: Computes angle formed by 3 coordinate nodes
+    function calculateJointAngle(p1, p2, p3) {
+      const angle = Math.abs((Math.atan2(p3.y - p2.y, p3.x - p2.x) - Math.atan2(p1.y - p2.y, p1.x - p2.x)) * (180 / Math.PI));
+      return angle > 180 ? 360 - angle : angle;
+    }
+
+    function evaluateExerciseMovement(poses) {
+      if (!poses || poses.length === 0) {
+        updateUIFeedback(false, "👤 NO PROFILE BODY DETECTED");
+        return;
+      }
+
+      const keypoints = poses[0].keypoints;
+      
+      // Find standard points
+      const leftShoulder = keypoints.find(k => k.name === 'left_shoulder');
+      const leftHip = keypoints.find(k => k.name === 'left_hip');
+      const leftKnee = keypoints.find(k => k.name === 'left_knee');
+      const leftAnkle = keypoints.find(k => k.name === 'left_ankle');
+      const leftElbow = keypoints.find(k => k.name === 'left_elbow');
+      const leftWrist = keypoints.find(k => k.name === 'left_wrist');
+
+      // ----------------------------------------
+      // ALGORITHM 1: ISOMETRIC PLANK ENGAGEMENT
+      // ----------------------------------------
+      if (chosenExercise === "plank") {
+        if (!leftShoulder || !leftHip || !leftKnee) return;
+        const hipAngle = calculateJointAngle(leftShoulder, leftHip, leftKnee);
         
-        // Logic Layer 3: Skin tone presence tracking
-        let r = centerPixel[0]; let g = centerPixel[1]; let b = centerPixel[2];
-        isFaceAligned = (r > 45 && g > 35 && b > 25 && r > b);
-
-        // Logic Layer 4: Webcam frame differential processing (Tremor detection)
-        if (previousFrameData) {
-          let totalDiff = 0;
-          for (let i = 0; i < currentFrame.data.length; i += 4) {
-            totalDiff += Math.abs(currentFrame.data[i] - previousFrameData.data[i]);
-          }
-          let motionScore = totalDiff / (canvas.width * canvas.height);
-          isBodyTremoring = (motionScore > 0.4 && motionScore < 12.0);
-        }
-        previousFrameData = currentFrame;
-
-        // Master UI Notification Engine
-        if (macTestingMode) {
-          updateUI(true, "💻 BYPASS ENGAGED: SENSORS IGNORED FOR MAC TESTING");
-          targetZone.style.borderColor = "#28a745";
-        } else if (!isPhoneFlat) {
-          updateUI(false, "⚠️ ORIENTATION ERROR: PHONE MUST BE LYING FLAT!");
-          targetZone.style.borderColor = "#ff3333";
-        } else if (!isSurfaceSolid) {
-          updateUI(false, "🛏️ STRUCTURAL FAIL: SOFT / BOUNCY SURFACE DETECTED!");
-          targetZone.style.borderColor = "#ff3333";
-        } else if (!isFaceAligned) {
-          updateUI(false, "👤 TARGET LOST: ALIGN FACE DIRECTLY OVER BLUE TARGET!");
-          targetZone.style.borderColor = "#ff3333";
-        } else if (!isBodyTremoring) {
-          updateUI(false, "🛌 ISOMETRIC LOCK ERROR: NO MUSCLE TREMOR OBSERVED!");
-          targetZone.style.borderColor = "#ff3333";
+        if (hipAngle >= 155 && hipAngle <= 185) {
+          isConditionPassing = true;
+          updateUIFeedback(true, "✅ PERFECT PLANK CORE LOCKED!");
         } else {
-          updateUI(true, "🔥 PERFECT FORM ENFORCED! STAY SUSPENDED!");
-          targetZone.style.borderColor = "#28a745";
+          isConditionPassing = false;
+          updateUIFeedback(false, "❌ RE-ALIGN HIPS TO FLAT PLANE!");
         }
       }
-    }
 
-    function updateUI(valid, message) {
-      statusElement.innerText = message;
-      statusElement.className = `status-box ${valid ? 'planking' : 'cheating'}`;
-    }
-
-    // 4. Strict Dual-Engine Countdown Gatekeeper
-    function runExerciseTimer() {
-      timerInterval = setInterval(() => {
-        const securityCleared = (isPhoneFlat && isSurfaceSolid && isFaceAligned && isBodyTremoring);
+      // ----------------------------------------
+      // ALGORITHM 2: REPETITION SQUAT COUNTING
+      // ----------------------------------------
+      else if (chosenExercise === "squats") {
+        if (!leftHip || !leftKnee || !leftAnkle) return;
+        const kneeAngle = calculateJointAngle(leftHip, leftKnee, leftAnkle);
         
-        if ((macTestingMode || securityCleared) && timeLeft > 0) {
-          timeLeft--;
-          let mins = Math.floor(timeLeft / 60).toString().padStart(2, '0');
-          let secs = (timeLeft % 60).toString().padStart(2, '0');
-          timerElement.innerText = `${mins}:${secs}`;
-          
-          if (timeLeft <= 0) {
-            clearInterval(timerInterval);
-            clearInterval(scanInterval);
-            alert("🏆 MAXIMUM SECURITY CHECK CONFIRMED! Access granted.");
-            window.location.href = "https://youtube.com";
-          }
+        // Deep Squat state entry: Knee breaks 105 degrees
+        if (kneeAngle < 105) {
+          isRepInProgress = true;
+          updateUIFeedback(true, "⬇️ DEEP SQUAT EXTENSION ENGAGED!");
+        } 
+        // Standing state recovery completes the full motion rep loop
+        else if (kneeAngle > 160 && isRepInProgress) {
+          repCount++;
+          isRepInProgress = false;
+          trackerDisplay.innerText = repCount;
+          checkWorkoutCompletion(repCount, 15);
         }
-      }, 1000);
-    }
-  </script>
-</body>
-</html>
+        
+        if (!isRepInProgress) updateUIFeedback(true, "🏋️‍♂️ DROP DOWN INTO A SQUAT");
+      }
+
+      // ----------------------------------------
+      // ALGORITHM 3: PUSHUP COMPRESSION GENERATOR
+      // ----------------------------------------
+      else if (chosenExercise === "pushups") {
+        if (!leftShoulder || !leftElbow || !leftWrist) return;
+        const elbowAngle = calculateJointAngle(leftShoulder, leftElbow, leftWrist);
+        
+        // Down phase boundary threshold check
+        if (elbowAngle < 95) {
+          isRepInProgress = true;
+          updateUIFeedback(true, "⬇️ EXCELLENT COMPRESSION! PUSH UP!");
+        } 
+        // Up phase return loop locks in a verified clean rep
+        else if (elbowAngle > 150 && isRepInProgress) {
+          repCount++;
+          isRepInProgress = false;
+          trackerDisplay.innerText = repCount;
+          checkWorkoutCompletion(repCount, 10);
+        }
+        
+        if (!isRepInProgress) updateUIFeedback(true, "💪 LOWER YOUR CHEST DOWN");
+      }
+
+      // ----------------------------------------
+      // ALGORITHM 4: JUMPING JACK COORDINATION
+      // ----------------------------------------
+      else if (chosenExercise === "jacks") {
+        const rightAnkle = keypoints.find(k => k.name === 'right_ankle');
+        if (!leftAnkle || !rightAnkle || !leftShoulder || !leftWrist) return;
+        
+        // Detect wide feet distance stance jump
+        const feetDistance = Math.abs(leftAnkle.x - rightAnkle.x);
+        const handsRaisedHigh = leftWrist.y < leftShoulder.y; // Y goes down on computer grids
+
+        if (feetDistance > 80 && handsRaisedHigh) {
+          isRepInProgress = true;
+          updateUIFeedback(true, "✨ WIDE JUMP EXTENSION HIT!");
+} else if (feetDistance < 40 && !handsRaisedHigh && isRepInProgress) {repCount++;isRepInProgress = false;trackerDisplay.innerText = repCount;checkWorkoutCompletion(repCount, 20);}if (!isRepInProgress) updateUIFeedback(true, "🏃 JUMP OUT WIDE!");}}function updateUIFeedback(valid, message) {statusElement.innerText = message;statusElement.className = status-box ${valid ? 'planking' : 'cheating'};}function checkWorkoutCompletion(current, target) {if (current >= target) {clearInterval(timerInterval);alert("🏆 SEVERITY CLEARANCE GRANTED! Screen Lock Lifted.");window.location.href = "https://www.youtube.com";}}function startWorkoutClockLoop() {timerInterval = setInterval(() => {if (chosenExercise === "plank" && isConditionPassing && plankTimeLeft > 0) {plankTimeLeft--;let mins = Math.floor(plankTimeLeft / 60).toString().padStart(2, '0');let secs = (plankTimeLeft % 60).toString().padStart(2, '0');trackerDisplay.innerText = ${mins}:${secs};if (plankTimeLeft <= 0) {clearInterval(timerInterval);alert("🏆 PLANK TARGET RECOVERED! Access Restored.");window.location.href = "https://www.youtube.com";}}}, 1000);}
